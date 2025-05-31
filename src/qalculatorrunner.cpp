@@ -37,6 +37,17 @@ QalculatorRunner::~QalculatorRunner()
 {
 }
 
+void QalculatorRunner::init()
+{
+    QProcess qalculateProcess;
+    QStringList args;
+    args << QStringLiteral("-e")
+         << QStringLiteral("1");
+    qalculateProcess.start(QStringLiteral("qalc"), args);
+    qalculateProcess.waitForStarted();
+    qalculateProcess.waitForFinished();
+}
+
 void QalculatorRunner::match(KRunner::RunnerContext &context)
 {
     const QString term = context.query();
@@ -104,7 +115,6 @@ QString QalculatorRunner::calculate(const QString &term)
     QProcess qalculateProcess;
     QStringList args;
     args << QStringLiteral("--defaults")
-         << QStringLiteral("-e")
          << QStringLiteral("-t")
          << QStringLiteral("+u8")
          << term;

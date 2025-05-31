@@ -37,6 +37,7 @@ class QalculatorRunner : public KRunner::AbstractRunner
 public:
     QalculatorRunner(QObject* parent, const KPluginMetaData &pluginMetaData);
     ~QalculatorRunner() override;
+    void init() override;
 
 public Q_SLOTS:
     void match(KRunner::RunnerContext &context) override;
