@@ -40,7 +40,7 @@ QalculatorRunner::~QalculatorRunner()
 void QalculatorRunner::match(KRunner::RunnerContext &context)
 {
     const QString term = context.query();
-    
+
     if (term.length() < 3) {
         return;
     }
@@ -55,7 +55,9 @@ void QalculatorRunner::match(KRunner::RunnerContext &context)
 
         KRunner::Action copyAction(QStringLiteral("copy"), QStringLiteral("edit-copy"), i18n("Copy to clipboard"));
         match.addAction(copyAction);
-        
+        KRunner::Action copyRawAction(QStringLiteral("copy-raw"), QStringLiteral("edit-copy-path"), i18n("Copy raw number to clipboard"));
+        match.addAction(copyRawAction);
+
         context.addMatch(match);
     }
 }
@@ -63,14 +65,29 @@ void QalculatorRunner::match(KRunner::RunnerContext &context)
 void QalculatorRunner::run(const KRunner::RunnerContext &context, const KRunner::QueryMatch &match)
 {
     Q_UNUSED(context)
-    
-    const QString result = match.text();
+
+    QString result = match.text();
     const QString action = match.selectedAction().id();
 
     if (action == QLatin1String("copy")) {
         copyToClipboard(result);
         context.requestQueryStringUpdate(QString(), 0); // Close KRunner
-    } else {
+    } else if (action == QLatin1String("copy-raw")) {
+        // Remove any formatting if the result is a number
+        QLocale locale;
+        bool ok = false;
+        double number = locale.toDouble(result, &ok);
+        if (ok) {
+            // Convert double to string with maximum precision
+            result = QString::number(number, 'f', 15);
+            // Remove trailing zeros and dot
+            result = result.remove(QRegularExpression(QStringLiteral("0+$")));
+            result = result.remove(QRegularExpression(QStringLiteral("\\.$")));
+        }
+        // Copy the raw number to clipboard (Fallback to original result if not a number)
+        copyToClipboard(result);
+        context.requestQueryStringUpdate(QString(), 0); // Close KRunner
+    }else {
         // Insert result into query line without closing KRunner
         context.requestQueryStringUpdate(result, result.length());
     }
@@ -91,7 +108,7 @@ QString QalculatorRunner::calculate(const QString &term)
          << QStringLiteral("-t")
          << QStringLiteral("+u8")
          << term;
-    
+
     qalculateProcess.start(QStringLiteral("qalc"), args);
 
     if (!qalculateProcess.waitForStarted()) {
@@ -111,6 +128,13 @@ QString QalculatorRunner::calculate(const QString &term)
 
     if (result.contains(QLatin1Char('\n'))) {
         result = result.split(QLatin1Char('\n')).last().trimmed();
+    }
+
+    QLocale locale;
+    bool ok = false;
+    double number = locale.toDouble(result, &ok);
+    if (ok) {
+        result = locale.toString(number, 'g', 15);
     }
 
     return result;
